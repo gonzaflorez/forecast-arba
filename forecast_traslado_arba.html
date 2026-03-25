@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Forecast Traslado ARBA01 → ARBA02</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      padding: 30px;
+      color: #1a1a2e;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      font-size: 1.8rem;
+      color: #1a1a2e;
+      font-weight: 700;
+    }
+    .header p {
+      color: #555;
+      margin-top: 6px;
+      font-size: 0.95rem;
+    }
+    .badge {
+      display: inline-block;
+      background: #e8f0fe;
+      color: #1a73e8;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.82rem;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    .cards {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 30px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 28px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      min-width: 160px;
+    }
+    .card .value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .card .label {
+      font-size: 0.78rem;
+      color: #777;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .card.peak .value { color: #e53935; }
+    .card.min .value { color: #43a047; }
+    .card.avg .value { color: #1a73e8; }
+
+    .chart-container {
+      background: white;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+    .chart-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 18px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .supuestos {
+      background: white;
+      border-radius: 12px;
+      padding: 22px 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+    .supuestos h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    .supuestos ul {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .supuestos ul li {
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      color: #444;
+    }
+
+    .oportunidades {
+      background: #fffde7;
+      border-left: 4px solid #f9a825;
+      border-radius: 0 12px 12px 0;
+      padding: 18px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .oportunidades h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #f57f17;
+      margin-bottom: 10px;
+    }
+    .oportunidades p {
+      font-size: 0.88rem;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .oportunidades strong { color: #333; }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: #aaa;
+    }
+
+    #dataTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    #dataTable thead tr {
+      background: #1a1a2e;
+      color: white;
+    }
+    #dataTable th {
+      padding: 10px 12px;
+      text-align: right;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    #dataTable th:first-child { text-align: left; }
+    #dataTable th.highlight { background: #1a73e8; }
+    #dataTable td {
+      padding: 9px 12px;
+      text-align: right;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+    #dataTable td:first-child { text-align: left; font-weight: 600; }
+    #dataTable tbody tr:hover { background: #f0f4ff; }
+    #dataTable tbody tr:nth-child(even) { background: #fafafa; }
+    #dataTable tbody tr:nth-child(even):hover { background: #f0f4ff; }
+    #dataTable .peak-row { background: #fff3f3 !important; }
+    #dataTable .peak-row:hover { background: #ffe0e0 !important; }
+    .td-highlight { font-weight: 700; color: #1a73e8; }
+    .td-peak { font-weight: 700; color: #e53935; }
+    .td-warn { font-weight: 700; color: #fb8c00; }
+
+    @media (max-width: 700px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Forecast de Traslado ARBA01 → ARBA02</h1>
+    <p>Tiempo estimado de operación — 1 Clarkista asignado</p>
+    <span class="badge">Año 2026</span>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="cards">
+    <div class="card peak">
+      <div class="value">103 hs</div>
+      <div class="label">Pico máximo (Jul)</div>
+    </div>
+    <div class="card min">
+      <div class="value">58.9 hs</div>
+      <div class="label">Mínimo (Mar)</div>
+    </div>
+    <div class="card avg" style="--c:#7b1fa2">
+      <div class="value" style="color:#7b1fa2">~3.7 hs</div>
+      <div class="label">Promedio diario</div>
+    </div>
+  </div>
+
+  <!-- Supuestos -->
+  <div class="supuestos">
+    <h3>Supuestos del cálculo</h3>
+    <ul>
+      <li>📦 180 unidades / pallet</li>
+      <li>⏱ 10 min / traslado</li>
+      <li>👷 1 Clarkista asignado</li>
+      <li>📅 22 días hábiles / mes</li>
+      <li>📊 Volumen: Rezago sistémico + no sistémico + FTL (8% de RO)</li>
+    </ul>
+  </div>
+
+  <!-- Main bar + line chart -->
+  <div class="chart-container">
+    <div class="chart-title">Horas de traslado por mes</div>
+    <canvas id="mainChart" height="90"></canvas>
+  </div>
+
+  <!-- Two column charts -->
+  <div class="two-col">
+    <div class="chart-container">
+      <div class="chart-title">Horas diarias por mes</div>
+      <canvas id="dailyChart" height="180"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Pallets trasladados por mes</div>
+      <canvas id="palletsChart" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- Tabla de datos -->
+  <div class="chart-container" style="margin-bottom:24px; overflow-x:auto;">
+    <div class="chart-title">Tabla de datos — Volúmenes y tiempos 2026</div>
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>Mes</th>
+          <th>Forecast Sistémico</th>
+          <th>DR</th>
+          <th>DEV</th>
+          <th>INV</th>
+          <th>QAX</th>
+          <th>CBT</th>
+          <th>CAD</th>
+          <th>Rezago Total</th>
+          <th>Retiros FTL</th>
+          <th class="highlight">Total Vol.</th>
+          <th class="highlight">Pallets</th>
+          <th class="highlight">Hs/mes</th>
+          <th class="highlight">Hs/día</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Oportunidades -->
+  <div class="oportunidades">
+    <h3>⚡ Oportunidades identificadas para reducir tiempos</h3>
+    <p><strong>DR</strong> (~6.000 – 9.700 unidades/día): configurar envío directo a ARBA02, eliminando su paso por ARBA01.</p>
+    <p><strong>CBT</strong> (~8.400 – 24.300 unidades/día): ídem. De implementarse ambas, se reduciría significativamente el volumen a cruzar y la carga del clarkista.</p>
+  </div>
+
+  <div class="footer">Generado para revisión gerencial · Datos: Rezagos forecast 2026</div>
+
+<script>
+  Chart.register(ChartDataLabels);
+
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const horasMes = [66.4, 61.2, 58.9, 76.6, 81.6, 85.7, 103.0, 97.8, 86.4, 83.9, 82.5, 89.0];
+  const horasDia = [3.0, 2.8, 2.7, 3.5, 3.7, 3.9, 4.7, 4.4, 3.9, 3.8, 3.7, 4.0];
+  const pallets  = [399, 367, 354, 460, 490, 514, 618, 587, 518, 503, 495, 534];
+
+  const colorBars = horasMes.map(h =>
+    h >= 100 ? 'rgba(229,57,53,0.85)' :
+    h >= 85  ? 'rgba(251,140,0,0.85)' :
+               'rgba(26,115,232,0.85)'
+  );
+
+  // Table data
+  const tableData = [
+    { mes:'Enero',      sistemico:29271, dr:7657, dev:0,    inv:8235,  qax:3004, cbt:0,     cad:633,  rezago:48801, ftl:22930, total:71731,  pallets:399, hmes:66.4,  hdia:3.0 },
+    { mes:'Febrero',    sistemico:25518, dr:5969, dev:0,    inv:8941,  qax:2796, cbt:0,     cad:688,  rezago:43912, ftl:22200, total:66111,  pallets:367, hmes:61.2,  hdia:2.8 },
+    { mes:'Marzo',      sistemico:23061, dr:7405, dev:2680, inv:9624,  qax:2918, cbt:1201,  cad:740,  rezago:47630, ftl:16015, total:63645,  pallets:354, hmes:58.9,  hdia:2.7 },
+    { mes:'Abril',      sistemico:25474, dr:6194, dev:2414, inv:11388, qax:2728, cbt:11474, cad:876,  rezago:60548, ftl:22188, total:82736,  pallets:460, hmes:76.6,  hdia:3.5 },
+    { mes:'Mayo',       sistemico:27097, dr:6070, dev:2957, inv:11853, qax:3150, cbt:12559, cad:912,  rezago:64598, ftl:23532, total:88130,  pallets:490, hmes:81.6,  hdia:3.7 },
+    { mes:'Junio',      sistemico:26969, dr:9742, dev:2866, inv:11597, qax:2971, cbt:14002, cad:892,  rezago:69039, ftl:23516, total:92555,  pallets:514, hmes:85.7,  hdia:3.9 },
+    { mes:'Julio',      sistemico:32428, dr:7728, dev:3110, inv:11553, qax:3248, cbt:24296, cad:889,  rezago:83251, ftl:28028, total:111279, pallets:618, hmes:103.0, hdia:4.7 },
+    { mes:'Agosto',     sistemico:30187, dr:5898, dev:3043, inv:12487, qax:3177, cbt:23692, cad:961,  rezago:79445, ftl:26132, total:105577, pallets:587, hmes:97.8,  hdia:4.4 },
+    { mes:'Septiembre', sistemico:29416, dr:7701, dev:3031, inv:12316, qax:2738, cbt:11693, cad:947,  rezago:67843, ftl:25470, total:93313,  pallets:518, hmes:86.4,  hdia:3.9 },
+    { mes:'Octubre',    sistemico:28495, dr:8815, dev:3066, inv:14217, qax:2824, cbt:7524,  cad:1094, rezago:66034, ftl:24576, total:90610,  pallets:503, hmes:83.9,  hdia:3.8 },
+    { mes:'Noviembre',  sistemico:27871, dr:7256, dev:3388, inv:14154, qax:3109, cbt:8128,  cad:1089, rezago:64995, ftl:24073, total:89067,  pallets:495, hmes:82.5,  hdia:3.7 },
+    { mes:'Diciembre',  sistemico:30813, dr:8815, dev:3609, inv:13731, qax:3024, cbt:8410,  cad:1056, rezago:69458, ftl:26650, total:96108,  pallets:534, hmes:89.0,  hdia:4.0 },
+  ];
+
+  const tbody = document.getElementById('tableBody');
+  tableData.forEach(r => {
+    const isPeak = r.hmes >= 100;
+    const isWarn = r.hmes >= 85 && r.hmes < 100;
+    const hClass = isPeak ? 'td-peak' : isWarn ? 'td-warn' : 'td-highlight';
+    const tr = document.createElement('tr');
+    if (isPeak) tr.classList.add('peak-row');
+    tr.innerHTML = `
+      <td>${r.mes}</td>
+      <td>${r.sistemico.toLocaleString('es-AR')}</td>
+      <td>${r.dr.toLocaleString('es-AR')}</td>
+      <td>${r.dev ? r.dev.toLocaleString('es-AR') : '–'}</td>
+      <td>${r.inv.toLocaleString('es-AR')}</td>
+      <td>${r.qax.toLocaleString('es-AR')}</td>
+      <td>${r.cbt ? r.cbt.toLocaleString('es-AR') : '–'}</td>
+      <td>${r.cad.toLocaleString('es-AR')}</td>
+      <td>${r.rezago.toLocaleString('es-AR')}</td>
+      <td>${r.ftl.toLocaleString('es-AR')}</td>
+      <td class="td-highlight">${r.total.toLocaleString('es-AR')}</td>
+      <td class="td-highlight">${r.pallets.toLocaleString('es-AR')}</td>
+      <td class="${hClass}">${r.hmes}</td>
+      <td class="${hClass}">${r.hdia}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Main chart
+  new Chart(document.getElementById('mainChart'), {
+    type: 'bar',
+    data: {
+      labels: meses,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Horas/mes',
+          data: horasMes,
+          backgroundColor: colorBars,
+          borderRadius: 6,
+          yAxisID: 'y',
+          datalabels: {
+            anchor: 'end',
+            align: 'end',
+            color: '#333',
+            font: { weight: 'bold', size: 11 },
+            formatter: v => v + ' hs'
+          }
+        },
+        {
+          type: 'line',
+          label: 'Horas/día',
+          data: horasDia,
+          borderColor: '#7b1fa2',
+          backgroundColor: 'rgba(123,31,162,0.1)',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointBackgroundColor: '#7b1fa2',
+          tension: 0.35,
+          yAxisID: 'y2',
+          datalabels: {
+            anchor: 'top',
+            align: 'top',
+            color: '#7b1fa2',
+            font: { weight: 'bold', size: 10 },
+            formatter: v => v + ' hs/d'
+          }
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + (ctx.datasetIndex === 0 ? ' hs/mes' : ' hs/día')
+          }
+        },
+        datalabels: {}
+      },
+      scales: {
+        y: {
+          position: 'left',
+          title: { display: true, text: 'Horas / mes', color: '#1a73e8' },
+          grid: { color: '#eee' },
+          min: 0,
+          max: 130
+        },
+        y2: {
+          position: 'right',
+          title: { display: true, text: 'Horas / día', color: '#7b1fa2' },
+          grid: { drawOnChartArea: false },
+          min: 0,
+          max: 7
+        }
+      }
+    }
+  });
+
+  // Daily chart
+  new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: [{
+        label: 'Hs/día',
+        data: horasDia,
+        borderColor: '#7b1fa2',
+        backgroundColor: 'rgba(123,31,162,0.08)',
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 5,
+        pointBackgroundColor: horasDia.map(h => h >= 4.5 ? '#e53935' : h >= 3.8 ? '#fb8c00' : '#7b1fa2'),
+        datalabels: {
+          anchor: 'top',
+          align: 'top',
+          color: ctx => horasDia[ctx.dataIndex] >= 4.5 ? '#e53935' : horasDia[ctx.dataIndex] >= 3.8 ? '#fb8c00' : '#7b1fa2',
+          font: { weight: 'bold', size: 11 },
+          formatter: v => v + ' hs'
+        }
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false }, datalabels: {} },
+      scales: {
+        y: { min: 0, max: 6.5, grid: { color: '#eee' } }
+      }
+    }
+  });
+
+  // Pallets chart
+  new Chart(document.getElementById('palletsChart'), {
+    type: 'bar',
+    data: {
+      labels: meses,
+      datasets: [{
+        label: 'Pallets/mes',
+        data: pallets,
+        backgroundColor: 'rgba(67,160,71,0.75)',
+        borderRadius: 6,
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          color: '#2e7d32',
+          font: { weight: 'bold', size: 11 },
+          formatter: v => v
+        }
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false }, datalabels: {} },
+      scales: {
+        y: { min: 0, max: 650, grid: { color: '#eee' } }
+      }
+    }
+  });
+</script>
+</body>
+</html>
